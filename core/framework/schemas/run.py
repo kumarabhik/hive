@@ -96,6 +96,7 @@ class Run(BaseModel):
     goal_description: str = ""
     input_data: dict[str, Any] = Field(default_factory=dict)
     output_data: dict[str, Any] = Field(default_factory=dict)
+    memory_snapshot: dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"extra": "allow"}
 

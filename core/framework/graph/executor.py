@@ -31,6 +31,12 @@ from framework.graph.output_cleaner import CleansingConfig, OutputCleaner
 from framework.graph.validator import OutputValidator
 from framework.llm.provider import LLMProvider, Tool
 from framework.runtime.core import Runtime
+from framework.graph.monitoring import (
+    MonitorHooks,
+    NodeStartEvent,
+    NodeEndEvent,
+    NodeErrorEvent,
+)
 
 
 @dataclass
@@ -46,6 +52,7 @@ class ExecutionResult:
     path: list[str] = field(default_factory=list)  # Node IDs traversed
     paused_at: str | None = None  # Node ID where execution paused for HITL
     session_state: dict[str, Any] = field(default_factory=dict)  # State to resume from
+    memory_snapshot: dict[str, Any] | None = None
 
     # Execution quality metrics
     total_retries: int = 0  # Total number of retries across all nodes
@@ -122,9 +129,11 @@ class GraphExecutor:
         node_registry: dict[str, NodeProtocol] | None = None,
         approval_callback: Callable | None = None,
         cleansing_config: CleansingConfig | None = None,
+        monitor: MonitorHooks | None = None,
         enable_parallel_execution: bool = True,
         parallel_config: ParallelExecutionConfig | None = None,
     ):
+
         """
         Initialize the executor.
 
@@ -145,6 +154,7 @@ class GraphExecutor:
         self.tool_executor = tool_executor
         self.node_registry = node_registry or {}
         self.approval_callback = approval_callback
+        self.monitor = monitor
         self.validator = OutputValidator()
         self.logger = logging.getLogger(__name__)
 
@@ -204,9 +214,12 @@ class GraphExecutor:
         # Validate graph
         errors = graph.validate()
         if errors:
+            snapshot = memory.read_all() if "memory" in locals() else None 
             return ExecutionResult(
                 success=False,
                 error=f"Invalid graph: {errors}",
+                output=snapshot or {},
+                memory_snapshot = snapshot,
             )
 
         # Validate tool availability
@@ -215,12 +228,17 @@ class GraphExecutor:
             self.logger.error("❌ Tool validation failed:")
             for err in tool_errors:
                 self.logger.error(f"   • {err}")
+                
+            snapshot = memory.read_all() if "memory" in locals() else None
             return ExecutionResult(
                 success=False,
                 error=(
                     f"Missing tools: {'; '.join(tool_errors)}. "
                     "Register tools via ToolRegistry or remove tool declarations from nodes."
                 ),
+                output = snapshot or {},
+                
+                memory_snapshot = snapshot,
             )
 
         # Initialize execution state
@@ -324,8 +342,72 @@ class GraphExecutor:
                     )
 
                 # Execute node
+                # Execute node
                 self.logger.info("   Executing...")
-                result = await node_impl.execute(ctx)
+
+                if self.monitor:
+                    self.monitor.on_node_start(
+                        NodeStartEvent(
+                            node_id=node_spec.id,
+                            node_name=node_spec.name,
+                            input_data=ctx.input_data,
+                        )
+                    )
+
+                try:
+                    if self.monitor:
+                        self.monitor.on_node_start(
+                            NodeStartEvent(
+                                node_id=node_spec.id,
+                                node_name=node_spec.name,
+                                input_data=ctx.input_data,
+                            )
+                        )
+
+                    try:
+                        result = await node_impl.execute(ctx)
+
+                        if self.monitor:
+                            self.monitor.on_node_end(
+                                NodeEndEvent(
+                                    node_id=node_spec.id,
+                                    node_name=node_spec.name,
+                                    success=result.success,
+                                    output_data=result.output or {},
+                                )
+                            )
+
+                    except Exception as e:
+                        if self.monitor:
+                            self.monitor.on_node_error(
+                                NodeErrorEvent(
+                                    node_id=node_spec.id,
+                                    node_name=node_spec.name,
+                                    error=e,
+                                )
+                            )
+                        raise
+
+                    if self.monitor:
+                        self.monitor.on_node_end(
+                            NodeEndEvent(
+                                node_id=node_spec.id,
+                                node_name=node_spec.name,
+                                success=result.success,
+                                output_data=result.output or {},
+                            )
+                        )
+
+                except Exception as e:
+                    if self.monitor:
+                        self.monitor.on_node_error(
+                            NodeErrorEvent(
+                                node_id=node_spec.id,
+                                node_name=node_spec.name,
+                                error=e,
+                            )
+                        )
+                    raise
 
                 if result.success:
                     # Validate output before accepting it
@@ -421,6 +503,7 @@ class GraphExecutor:
                         total_retries_count = sum(node_retry_counts.values())
                         nodes_failed = list(node_retry_counts.keys())
 
+                        final_snapshot = memory.read_all()
                         return ExecutionResult(
                             success=False,
                             error=(
@@ -462,16 +545,18 @@ class GraphExecutor:
                     nodes_failed = [nid for nid, count in node_retry_counts.items() if count > 0]
                     exec_quality = "degraded" if total_retries_count > 0 else "clean"
 
+                    
                     return ExecutionResult(
                         success=True,
                         output=saved_memory,
+                        memory_snapshot=saved_memory,
                         steps_executed=steps,
                         total_tokens=total_tokens,
                         total_latency_ms=total_latency,
                         path=path,
                         paused_at=node_spec.id,
                         session_state=session_state_out,
-                        total_retries=total_retries_count,
+                        memory_snapshot=snapshot,
                         nodes_with_failures=nodes_failed,
                         retry_details=dict(node_retry_counts),
                         had_partial_failures=len(nodes_failed) > 0,
@@ -584,9 +669,11 @@ class GraphExecutor:
                 ),
             )
 
+            
             return ExecutionResult(
                 success=True,
                 output=output,
+                memory_snapshot=output,
                 steps_executed=steps,
                 total_tokens=total_tokens,
                 total_latency_ms=total_latency,
@@ -597,6 +684,7 @@ class GraphExecutor:
                 had_partial_failures=len(nodes_failed) > 0,
                 execution_quality=exec_quality,
             )
+
 
         except Exception as e:
             self.runtime.report_problem(
@@ -612,9 +700,13 @@ class GraphExecutor:
             total_retries_count = sum(node_retry_counts.values())
             nodes_failed = list(node_retry_counts.keys())
 
+
+            snapshot = memory.read_all() if "memory" in locals() else None
             return ExecutionResult(
                 success=False,
                 error=str(e),
+                output=snapshot or {},
+                memory_snapshot=snapshot,
                 steps_executed=steps,
                 path=path,
                 total_retries=total_retries_count,
@@ -623,6 +715,7 @@ class GraphExecutor:
                 had_partial_failures=len(nodes_failed) > 0,
                 execution_quality="failed",
             )
+
 
     def _build_context(
         self,

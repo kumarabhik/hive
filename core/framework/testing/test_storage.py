@@ -54,6 +54,12 @@ class TestStorage:
         ]
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
+    def _results_key(self, test_id: str) -> str:
+        raw = str(test_id)
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+    def _results_dir(self, test_id: str) -> Path:
+        return self.base_path / "results" / self._results_key(test_id)
 
     # === TEST OPERATIONS ===
 
@@ -100,7 +106,8 @@ class TestStorage:
         test_path.unlink()
 
         # Also delete results
-        results_dir = self.base_path / "results" / test_id
+        results_dir = self._results_dir(test_id)
+
         if results_dir.exists():
             for f in results_dir.iterdir():
                 f.unlink()
@@ -169,7 +176,7 @@ class TestStorage:
 
     def save_result(self, test_id: str, result: TestResult) -> None:
         """Save a test result."""
-        results_dir = self.base_path / "results" / test_id
+        results_dir = self._results_dir(test_id)
         results_dir.mkdir(parents=True, exist_ok=True)
 
         # Save with timestamp
@@ -185,7 +192,8 @@ class TestStorage:
 
     def get_latest_result(self, test_id: str) -> TestResult | None:
         """Get the most recent result for a test."""
-        latest_path = self.base_path / "results" / test_id / "latest.json"
+        latest_path = self._results_dir(test_id) / "latest.json"
+
         if not latest_path.exists():
             return None
         with open(latest_path, encoding="utf-8") as f:
@@ -193,7 +201,7 @@ class TestStorage:
 
     def get_result_history(self, test_id: str, limit: int = 10) -> list[TestResult]:
         """Get result history for a test, most recent first."""
-        results_dir = self.base_path / "results" / test_id
+        results_dir = self._results_dir(test_id)
         if not results_dir.exists():
             return []
 

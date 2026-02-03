@@ -21,6 +21,8 @@ import sys
 from pathlib import Path
 
 
+
+
 def _configure_paths():
     """Auto-configure sys.path so agents in exports/ are discoverable.
 
@@ -48,6 +50,27 @@ def _configure_paths():
     core_str = str(project_root / "core")
     if (project_root / "core").is_dir() and core_str not in sys.path:
         sys.path.insert(0, core_str)
+
+
+def _configure_paths():
+    """Auto-configure sys.path so agents in exports/ are discoverable."""
+    framework_dir = Path(__file__).resolve().parent
+    core_dir = framework_dir.parent
+    project_root = core_dir.parent
+
+    if not (project_root / "exports").is_dir() and not (project_root / "core").is_dir():
+        project_root = Path.cwd()
+
+    exports_dir = project_root / "exports"
+    if exports_dir.is_dir():
+        exports_str = str(exports_dir)
+        if exports_str not in sys.path:
+            sys.path.insert(0, exports_str)
+
+    core_str = str(project_root / "core")
+    if (project_root / "core").is_dir() and core_str not in sys.path:
+        sys.path.insert(0, core_str)
+
 
 
 def main():

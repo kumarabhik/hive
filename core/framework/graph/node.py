@@ -474,7 +474,7 @@ class NodeResult:
     success: bool
     output: dict[str, Any] = field(default_factory=dict)
     error: str | None = None
-
+    validation_errors: list[str] = field(default_factory=list)
     # For routing decisions
     next_node: str | None = None
     route_reason: str | None = None

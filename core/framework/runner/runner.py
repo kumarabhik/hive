@@ -281,7 +281,8 @@ class AgentRunner:
         self._llm: LLMProvider | None = None
         self._executor: GraphExecutor | None = None
         self._approval_callback: Callable | None = None
-
+        self._monitor = None
+        
         # Multi-entry-point support (AgentRuntime)
         self._agent_runtime: AgentRuntime | None = None
         self._uses_async_entry_points = self.graph.has_async_entry_points()
@@ -443,6 +444,12 @@ class AgentRunner:
         if self._executor is not None:
             self._executor.approval_callback = callback
 
+    def set_monitor(self, monitor) -> None:
+        self._monitor = monitor
+        if getattr(self, "_executor", None) is not None:
+            self._executor.monitor = monitor
+
+
     def _setup(self) -> None:
         """Set up runtime, LLM, and executor."""
         # Set up session context for tools (workspace_id, agent_id, session_id)
@@ -541,13 +548,17 @@ class AgentRunner:
         self._runtime = Runtime(storage_path=self._storage_path)
 
         # Create executor
+
         self._executor = GraphExecutor(
             runtime=self._runtime,
             llm=self._llm,
             tools=tools,
             tool_executor=tool_executor,
             approval_callback=self._approval_callback,
+            monitor=self._monitor,
         )
+
+
 
     def _setup_agent_runtime(self, tools: list, tool_executor: Callable | None) -> None:
         """Set up multi-entry-point execution using AgentRuntime."""
@@ -638,12 +649,22 @@ class AgentRunner:
         if self._executor is None:
             self._setup()
 
-        return await self._executor.execute(
+
+
+        result = await self._executor.execute(
             graph=self.graph,
             goal=self.goal,
             input_data=input_data,
             session_state=session_state,
         )
+
+        # Persist memory snapshot if provided by executor
+        if getattr(result, "memory_snapshot", None) is not None:
+            snapshot_path = self._storage_path / "memory_snapshot.json"
+            snapshot_path.write_text(json.dumps(result.memory_snapshot, indent=2))
+
+        return result
+
 
     async def _run_with_agent_runtime(
         self,
