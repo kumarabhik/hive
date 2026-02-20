@@ -4,8 +4,11 @@ from fastmcp import FastMCP
 
 from aden_tools.tools.chart_tool.chart_tool import ChartSpec
 from aden_tools.tools.excel_write_tool.excel_write_tool import WorkbookSpec
+from aden_tools.tools.office_skills_pack.contracts import CONTRACT_VERSION
 from aden_tools.tools.powerpoint_tool.powerpoint_tool import DeckSpec
 from aden_tools.tools.word_tool.word_tool import DocSpec
+
+SUPPORTED_TOOL_NAMES = ["chart", "excel", "powerpoint", "word"]
 
 
 def register_tools(mcp: FastMCP) -> None:
@@ -17,11 +20,31 @@ def register_tools(mcp: FastMCP) -> None:
         """
         name = tool_name.strip().lower()
         if name == "chart":
-            return ChartSpec.model_json_schema()
+            return {
+                "contract_version": CONTRACT_VERSION,
+                "tool": "chart",
+                "schema": ChartSpec.model_json_schema(),
+            }
         if name == "excel":
-            return WorkbookSpec.model_json_schema()
+            return {
+                "contract_version": CONTRACT_VERSION,
+                "tool": "excel",
+                "schema": WorkbookSpec.model_json_schema(),
+            }
         if name == "powerpoint":
-            return DeckSpec.model_json_schema()
+            return {
+                "contract_version": CONTRACT_VERSION,
+                "tool": "powerpoint",
+                "schema": DeckSpec.model_json_schema(),
+            }
         if name == "word":
-            return DocSpec.model_json_schema()
-        return {"error": "unknown tool_name"}
+            return {
+                "contract_version": CONTRACT_VERSION,
+                "tool": "word",
+                "schema": DocSpec.model_json_schema(),
+            }
+        return {
+            "contract_version": CONTRACT_VERSION,
+            "error": "unknown tool_name",
+            "supported": SUPPORTED_TOOL_NAMES,
+        }

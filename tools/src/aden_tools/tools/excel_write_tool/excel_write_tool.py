@@ -175,6 +175,15 @@ def register_tools(mcp: FastMCP) -> None:
                     from openpyxl.drawing.image import Image as XLImage
 
                     for img in sheet.images:
+                        ext = os.path.splitext(img.path.lower())[1]
+                        if ext not in [".png", ".jpg", ".jpeg"]:
+                            return ArtifactResult(
+                                success=False,
+                                error=ArtifactError(
+                                    code="INVALID_PATH",
+                                    message=f"unsupported image extension: {ext}",
+                                ),
+                            ).model_dump()
                         img_abs = get_secure_path(img.path, workspace_id, agent_id, session_id)
                         if os.path.exists(img_abs):
                             xl_img = XLImage(img_abs)

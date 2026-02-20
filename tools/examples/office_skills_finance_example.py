@@ -1,7 +1,7 @@
 from fastmcp import FastMCP
 
 from aden_tools.tools.mcp_helpers import get_tool_fn
-from aden_tools.tools.office_skills_pack.register import register_office_skills_pack
+from aden_tools.tools.office_skills_pack import register_office_skills_pack
 
 WORKSPACE_ID = "demo-ws"
 AGENT_ID = "demo-agent"

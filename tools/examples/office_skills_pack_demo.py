@@ -6,11 +6,8 @@ Run:
   - from repo root:  python tools/examples/office_skills_pack_demo.py
   - from tools/:     python examples/office_skills_pack_demo.py
 """
-from aden_tools.tools.chart_tool.chart_tool import register_tools as register_chart
-from aden_tools.tools.excel_write_tool.excel_write_tool import register_tools as register_xlsx
-from aden_tools.tools.powerpoint_tool.powerpoint_tool import register_tools as register_ppt
-from aden_tools.tools.word_tool.word_tool import register_tools as register_word
 from aden_tools.tools.mcp_helpers import get_tool_fn
+from aden_tools.tools.office_skills_pack import register_office_skills_pack
 from fastmcp import FastMCP
 
 WORKSPACE_ID = "demo-ws"
@@ -20,10 +17,7 @@ SESSION_ID = "demo-session"
 
 def main():
     mcp = FastMCP("office-skills-demo")
-    register_xlsx(mcp)
-    register_ppt(mcp)
-    register_word(mcp)
-    register_chart(mcp)
+    register_office_skills_pack(mcp)
 
     # NOTE: This still accesses the registered function, but not via private _tool_manager internals if MCP exposes a public method.
     # If FastMCP does NOT expose a public getter, keep this for now but we can swap to public API later.
