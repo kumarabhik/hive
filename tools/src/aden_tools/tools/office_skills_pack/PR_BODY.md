@@ -14,7 +14,7 @@ python tools/examples/office_skills_pack_demo.py
 
 ## How to run tests
 cd tools
-python -m pytest -q -k "not symlink"
+python -m pytest -q
 
 ## Security
 All inputs/outputs resolved using session sandbox via get_secure_path (no arbitrary FS writes).
@@ -30,3 +30,13 @@ charts + XLSX + PPTX + DOCX and return a normalized manifest, instead of coordin
 - Chart points <= 5000
 
 In strict mode, limits return `INVALID_SCHEMA`; in non-strict mode, outputs are truncated/skipped safely.
+
+## How to review
+1) Run one-call pack demo:
+   python -m aden_tools.cli.office_pack --spec tools/examples/pack_finance.json
+2) Run tests:
+   cd tools && python -m pytest -q
+3) Key files:
+   - office_skills_pack/pack_tool.py (one-call orchestration + guardrails)
+   - chart_tool/chart_tool.py (PNG charts)
+   - excel_write_tool/excel_write_tool.py (xlsx + images)

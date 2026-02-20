@@ -9,6 +9,7 @@ from aden_tools.tools.office_skills_pack.manifest_tool import (
 )
 from aden_tools.tools.office_skills_pack.pack_tool import register_tools as register_pack_tool
 from aden_tools.tools.office_skills_pack.schema_tool import register_tools as register_schema
+from aden_tools.tools.office_skills_pack.viewer_tool import register_tools as register_viewer
 from aden_tools.tools.powerpoint_tool.powerpoint_tool import (
     register_tools as register_powerpoint,
 )
@@ -23,3 +24,4 @@ def register_office_skills_pack(mcp: FastMCP) -> None:
     register_schema(mcp)
     register_manifest(mcp)
     register_pack_tool(mcp)
+    register_viewer(mcp)

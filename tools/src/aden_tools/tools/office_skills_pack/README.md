@@ -67,5 +67,25 @@ See `tools/tests/fixtures/office_skills_pack/` for sample JSON inputs.
 Use `office_pack_generate` to create charts + XLSX + PPTX + DOCX in one request.
 It returns a manifest in `metadata.manifest`.
 
+CLI example:
+
+```bash
+python -m aden_tools.cli.office_pack --spec tools/examples/pack_finance.json
+```
+
+Manifest example:
+
+```json
+{
+  "metadata": {
+    "manifest": [
+      {"tool": "excel_write", "output_path": "out/pack_finance.xlsx", "metadata": {}},
+      {"tool": "powerpoint_generate", "output_path": "out/pack_finance.pptx", "metadata": {}},
+      {"tool": "word_generate", "output_path": "out/pack_finance.docx", "metadata": {}}
+    ]
+  }
+}
+```
+
 ## Limits (MVP)
 Slides <= 30, sheet rows <= 2000, chart points <= 5000 (strict mode).
