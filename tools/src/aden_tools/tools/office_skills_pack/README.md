@@ -62,3 +62,10 @@ python tools/examples/office_skills_pack_demo.py
 
 ## Example payloads
 See `tools/tests/fixtures/office_skills_pack/` for sample JSON inputs.
+
+## One-call generation
+Use `office_pack_generate` to create charts + XLSX + PPTX + DOCX in one request.
+It returns a manifest in `metadata.manifest`.
+
+## Limits (MVP)
+Slides <= 30, sheet rows <= 2000, chart points <= 5000 (strict mode).

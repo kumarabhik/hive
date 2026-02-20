@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+from math import ceil
 from typing import Any, List, Optional
 
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from aden_tools.tools.office_skills_pack.contracts import ArtifactError, ArtifactResult
+from aden_tools.tools.office_skills_pack.limits import MAX_CHART_POINTS
 from ..file_system_toolkits.security import get_secure_path
 
 
@@ -31,6 +33,7 @@ def register_tools(mcp: FastMCP) -> None:
         workspace_id: str,
         agent_id: str,
         session_id: str,
+        strict: bool = True,
     ) -> dict:
         """
         Render a simple multi-series line chart into a PNG (schema-first) saved into the session sandbox.
@@ -50,6 +53,9 @@ def register_tools(mcp: FastMCP) -> None:
             ).model_dump()
 
         try:
+            import matplotlib
+
+            matplotlib.use("Agg")
             import matplotlib.pyplot as plt
         except ImportError:
             return ArtifactResult(
@@ -62,6 +68,20 @@ def register_tools(mcp: FastMCP) -> None:
             ).model_dump()
 
         try:
+            total_points = sum(min(len(s.x), len(s.y)) for s in spec.series)
+            downsample_step = 1
+            if total_points > MAX_CHART_POINTS:
+                if strict:
+                    return ArtifactResult(
+                        success=False,
+                        error=ArtifactError(
+                            code="INVALID_SCHEMA",
+                            message="chart too large",
+                            details={"points": total_points, "max": MAX_CHART_POINTS},
+                        ),
+                    ).model_dump()
+                downsample_step = max(2, ceil(total_points / MAX_CHART_POINTS))
+
             out_path = get_secure_path(path, workspace_id, agent_id, session_id)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
@@ -69,7 +89,12 @@ def register_tools(mcp: FastMCP) -> None:
             for s in spec.series:
                 # handle mismatched lengths safely
                 n = min(len(s.x), len(s.y))
-                plt.plot(s.x[:n], s.y[:n], label=s.name)
+                x_vals = s.x[:n]
+                y_vals = s.y[:n]
+                if downsample_step > 1:
+                    x_vals = x_vals[::downsample_step]
+                    y_vals = y_vals[::downsample_step]
+                plt.plot(x_vals, y_vals, label=s.name)
 
             plt.title(spec.title)
             if spec.x_label:

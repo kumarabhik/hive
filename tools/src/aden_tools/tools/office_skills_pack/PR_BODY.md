@@ -19,3 +19,14 @@ python -m pytest -q -k "not symlink"
 ## Security
 All inputs/outputs resolved using session sandbox via get_secure_path (no arbitrary FS writes).
 No cloud APIs/OAuth in MVP.
+
+## Why Pack Tool Exists
+`office_pack_generate` gives orchestration agents a single deterministic interface to produce
+charts + XLSX + PPTX + DOCX and return a normalized manifest, instead of coordinating many tool calls manually.
+
+## Guardrails / Limits
+- Slides <= 30
+- Sheet rows <= 2000
+- Chart points <= 5000
+
+In strict mode, limits return `INVALID_SCHEMA`; in non-strict mode, outputs are truncated/skipped safely.

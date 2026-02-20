@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
+from aden_tools.tools.office_skills_pack.limits import MAX_SHEET_CELLS, MAX_SHEET_ROWS
 from ..file_system_toolkits.security import get_secure_path
 
 
@@ -136,6 +137,36 @@ def register_tools(mcp: FastMCP) -> None:
 
 
             for sheet in spec.sheets:
+                if len(sheet.rows) > MAX_SHEET_ROWS:
+                    if strict:
+                        return ArtifactResult(
+                            success=False,
+                            error=ArtifactError(
+                                code="INVALID_SCHEMA",
+                                message="too many rows",
+                                details={"sheet": sheet.name, "rows": len(sheet.rows), "max": MAX_SHEET_ROWS},
+                            ),
+                        ).model_dump()
+                    sheet.rows = sheet.rows[:MAX_SHEET_ROWS]
+
+                cell_count = len(sheet.columns) * len(sheet.rows)
+                if cell_count > MAX_SHEET_CELLS:
+                    if strict:
+                        return ArtifactResult(
+                            success=False,
+                            error=ArtifactError(
+                                code="INVALID_SCHEMA",
+                                message="too many cells",
+                                details={
+                                    "sheet": sheet.name,
+                                    "cells": cell_count,
+                                    "max": MAX_SHEET_CELLS,
+                                },
+                            ),
+                        ).model_dump()
+                    max_rows = max(1, MAX_SHEET_CELLS // max(1, len(sheet.columns)))
+                    sheet.rows = sheet.rows[:max_rows]
+
                 ws = wb.create_sheet(title=sheet.name[:31])  # Excel sheet name limit
 
                 # header
