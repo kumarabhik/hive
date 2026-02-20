@@ -73,6 +73,7 @@ def register_tools(mcp: FastMCP) -> None:
         agent_id: str,
         session_id: str,
         strict: bool = True,
+        mode: str = "create",
     ) -> dict:
         """
         Write an Excel (.xlsx) file from a strict schema into the session sandbox.
@@ -84,6 +85,15 @@ def register_tools(mcp: FastMCP) -> None:
                 error=ArtifactError(
                     code="INVALID_SCHEMA",
                     message="path must end with .xlsx",
+                ),
+            ).model_dump()
+
+        if mode not in {"create", "update"}:
+            return ArtifactResult(
+                success=False,
+                error=ArtifactError(
+                    code="INVALID_SCHEMA",
+                    message="mode must be 'create' or 'update'",
                 ),
             ).model_dump()
 
@@ -104,7 +114,7 @@ def register_tools(mcp: FastMCP) -> None:
 
 
         try:
-            from openpyxl import Workbook
+            from openpyxl import Workbook, load_workbook
             from openpyxl.styles import Font, PatternFill
         except ImportError:
 
@@ -118,10 +128,26 @@ def register_tools(mcp: FastMCP) -> None:
             out_path = get_secure_path(path, workspace_id, agent_id, session_id)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-            wb = Workbook()
-            # remove default sheet
-            if wb.sheetnames:
-                wb.remove(wb[wb.sheetnames[0]])
+            if mode == "update":
+                if os.path.exists(out_path):
+                    wb = load_workbook(out_path)
+                elif strict:
+                    return ArtifactResult(
+                        success=False,
+                        error=ArtifactError(
+                            code="INVALID_PATH",
+                            message="xlsx to update not found",
+                        ),
+                    ).model_dump()
+                else:
+                    wb = Workbook()
+                    if wb.sheetnames:
+                        wb.remove(wb[wb.sheetnames[0]])
+            else:
+                wb = Workbook()
+                # remove default sheet
+                if wb.sheetnames:
+                    wb.remove(wb[wb.sheetnames[0]])
 
             header_font = Font(bold=True)
 
@@ -167,7 +193,10 @@ def register_tools(mcp: FastMCP) -> None:
                     max_rows = max(1, MAX_SHEET_CELLS // max(1, len(sheet.columns)))
                     sheet.rows = sheet.rows[:max_rows]
 
-                ws = wb.create_sheet(title=sheet.name[:31])  # Excel sheet name limit
+                sheet_name = sheet.name[:31]  # Excel sheet name limit
+                if sheet_name in wb.sheetnames:
+                    del wb[sheet_name]
+                ws = wb.create_sheet(title=sheet_name)
 
                 # header
                 for j, col in enumerate(sheet.columns, start=1):

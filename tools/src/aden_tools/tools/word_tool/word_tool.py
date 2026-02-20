@@ -46,6 +46,7 @@ def register_tools(mcp: FastMCP) -> None:
         agent_id: str,
         session_id: str,
         strict: bool = True,
+        mode: str = "create",
     ) -> dict:
         """
         Generate a Word (.docx) report from a strict schema and save it to the session sandbox.
@@ -57,6 +58,15 @@ def register_tools(mcp: FastMCP) -> None:
                 error=ArtifactError(
                     code="INVALID_EXTENSION",
                     message="path must end with .docx",
+                ),
+            ).model_dump()
+
+        if mode not in {"create", "append"}:
+            return ArtifactResult(
+                success=False,
+                error=ArtifactError(
+                    code="INVALID_SCHEMA",
+                    message="mode must be 'create' or 'append'",
                 ),
             ).model_dump()
 
@@ -93,10 +103,22 @@ def register_tools(mcp: FastMCP) -> None:
             out_path = get_secure_path(path, workspace_id, agent_id, session_id)
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
-            d = Document()
-
-            # Title
-            d.add_heading(spec.title, level=0)
+            if mode == "append":
+                if os.path.exists(out_path):
+                    d = Document(out_path)
+                elif strict:
+                    return ArtifactResult(
+                        success=False,
+                        error=ArtifactError(
+                            code="INVALID_PATH",
+                            message="docx to append not found",
+                        ),
+                    ).model_dump()
+                else:
+                    d = Document()
+            else:
+                d = Document()
+                d.add_heading(spec.title, level=0)
             
             for sec in spec.sections:
                 d.add_heading(sec.heading, level=1)

@@ -101,3 +101,46 @@ def test_word_generate_rejects_bad_extension(word_tools):
     assert res.get("success") is False
     assert res.get("error", {}).get("code") == "INVALID_EXTENSION"
 
+
+def test_word_generate_append_mode(word_tools):
+    gen = word_tools["word_generate"]
+
+    res_create = gen(
+        path="out/append_report.docx",
+        doc={
+            "title": "Append Report",
+            "sections": [{"heading": "First Section", "paragraphs": ["one"], "bullets": []}],
+        },
+        workspace_id=TEST_WORKSPACE_ID,
+        agent_id=TEST_AGENT_ID,
+        session_id=TEST_SESSION_ID,
+        mode="create",
+    )
+    assert res_create.get("success") is True, res_create
+
+    res_append = gen(
+        path="out/append_report.docx",
+        doc={
+            "title": "Ignored In Append",
+            "sections": [{"heading": "Second Section", "paragraphs": ["two"], "bullets": []}],
+        },
+        workspace_id=TEST_WORKSPACE_ID,
+        agent_id=TEST_AGENT_ID,
+        session_id=TEST_SESSION_ID,
+        mode="append",
+    )
+    assert res_append.get("success") is True, res_append
+
+    out_abs = (
+        Path(word_tools["tmp_path"])
+        / TEST_WORKSPACE_ID
+        / TEST_AGENT_ID
+        / TEST_SESSION_ID
+        / "out"
+        / "append_report.docx"
+    )
+    d = Document(str(out_abs))
+    full = "\n".join(p.text for p in d.paragraphs)
+    assert "First Section" in full
+    assert "Second Section" in full
+

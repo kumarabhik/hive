@@ -29,6 +29,7 @@ class ChartJob(BaseModel):
 
 class PackSpec(BaseModel):
     strict: bool = True
+    dry_run: bool = False
     charts: List[ChartJob] = Field(default_factory=list)
     xlsx_path: Optional[str] = None
     pptx_path: Optional[str] = None
@@ -58,17 +59,6 @@ def register_tools(mcp: FastMCP) -> None:
                 error=ArtifactError(code="INVALID_SCHEMA", message="Invalid pack schema", details=str(e)),
             ).model_dump()
 
-        chart_png = mcp._tool_manager._tools.get("chart_render_png")
-        xlsx = mcp._tool_manager._tools.get("excel_write")
-        pptx = mcp._tool_manager._tools.get("powerpoint_generate")
-        docx = mcp._tool_manager._tools.get("word_generate")
-
-        if chart_png is None or xlsx is None or pptx is None or docx is None:
-            return ArtifactResult(
-                success=False,
-                error=ArtifactError(code="DEP_MISSING", message="Office pack tools not registered in MCP"),
-            ).model_dump()
-
         for job in spec.charts:
             total_points = sum(min(len(s.x), len(s.y)) for s in job.chart.series)
             if total_points > MAX_CHART_POINTS and spec.strict:
@@ -78,24 +68,6 @@ def register_tools(mcp: FastMCP) -> None:
                         code="INVALID_SCHEMA",
                         message="chart too large",
                         details={"points": total_points, "max": MAX_CHART_POINTS},
-                    ),
-                ).model_dump()
-            r = chart_png.fn(
-                path=job.path,
-                chart=job.chart.model_dump(),
-                workspace_id=workspace_id,
-                agent_id=agent_id,
-                session_id=session_id,
-                strict=spec.strict,
-            )
-            if not r.get("success") and spec.strict:
-                err = r.get("error") or {}
-                return ArtifactResult(
-                    success=False,
-                    error=ArtifactError(
-                        code=err.get("code", "UNKNOWN"),
-                        message=err.get("message", "chart generation failed"),
-                        details=err.get("details"),
                     ),
                 ).model_dump()
 
@@ -122,6 +94,51 @@ def register_tools(mcp: FastMCP) -> None:
                             ),
                         ).model_dump()
                     sh.rows = sh.rows[:MAX_SHEET_ROWS]
+
+        if spec.dry_run:
+            return ArtifactResult(
+                success=True,
+                metadata={
+                    "dry_run": True,
+                    "will_generate": {
+                        "charts": [c.path for c in spec.charts],
+                        "xlsx": spec.xlsx_path,
+                        "pptx": spec.pptx_path,
+                        "docx": spec.docx_path,
+                    },
+                },
+            ).model_dump()
+
+        chart_png = mcp._tool_manager._tools.get("chart_render_png")
+        xlsx = mcp._tool_manager._tools.get("excel_write")
+        pptx = mcp._tool_manager._tools.get("powerpoint_generate")
+        docx = mcp._tool_manager._tools.get("word_generate")
+
+        if chart_png is None or xlsx is None or pptx is None or docx is None:
+            return ArtifactResult(
+                success=False,
+                error=ArtifactError(code="DEP_MISSING", message="Office pack tools not registered in MCP"),
+            ).model_dump()
+
+        for job in spec.charts:
+            r = chart_png.fn(
+                path=job.path,
+                chart=job.chart.model_dump(),
+                workspace_id=workspace_id,
+                agent_id=agent_id,
+                session_id=session_id,
+                strict=spec.strict,
+            )
+            if not r.get("success") and spec.strict:
+                err = r.get("error") or {}
+                return ArtifactResult(
+                    success=False,
+                    error=ArtifactError(
+                        code=err.get("code", "UNKNOWN"),
+                        message=err.get("message", "chart generation failed"),
+                        details=err.get("details"),
+                    ),
+                ).model_dump()
 
         items: List[Dict[str, Any]] = []
 

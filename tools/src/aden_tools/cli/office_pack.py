@@ -15,9 +15,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--workspace", default="demo-ws")
     p.add_argument("--agent", default="demo-agent")
     p.add_argument("--session", default="demo-session")
+    p.add_argument("--dry-run", action="store_true")
     args = p.parse_args(argv)
 
     spec = json.loads(open(args.spec, "r", encoding="utf-8").read())
+    if args.dry_run:
+        spec["dry_run"] = True
 
     mcp = FastMCP("office-pack-cli")
     register_office_skills_pack(mcp)

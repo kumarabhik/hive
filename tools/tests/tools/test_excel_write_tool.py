@@ -125,3 +125,57 @@ def test_excel_write_embeds_image(tmp_path: Path):
         wb = openpyxl.load_workbook(x_abs)
         ws = wb["Charts"]
         assert len(getattr(ws, "_images", [])) >= 1
+
+
+def test_excel_write_update_mode_replaces_sheet(excel_tools):
+    fn = excel_tools["excel_write"]
+
+    res1 = fn(
+        path="out/update_report.xlsx",
+        workbook={
+            "sheets": [
+                {
+                    "name": "Summary",
+                    "columns": ["Ticker", "Return"],
+                    "rows": [["AAPL", 0.01]],
+                }
+            ]
+        },
+        workspace_id=TEST_WORKSPACE_ID,
+        agent_id=TEST_AGENT_ID,
+        session_id=TEST_SESSION_ID,
+        mode="create",
+    )
+    assert res1.get("success") is True, res1
+
+    res2 = fn(
+        path="out/update_report.xlsx",
+        workbook={
+            "sheets": [
+                {
+                    "name": "Summary",
+                    "columns": ["Ticker", "Return"],
+                    "rows": [["AAPL", 0.25]],
+                }
+            ]
+        },
+        workspace_id=TEST_WORKSPACE_ID,
+        agent_id=TEST_AGENT_ID,
+        session_id=TEST_SESSION_ID,
+        mode="update",
+    )
+    assert res2.get("success") is True, res2
+
+    out_abs = (
+        Path(excel_tools["tmp_path"])
+        / TEST_WORKSPACE_ID
+        / TEST_AGENT_ID
+        / TEST_SESSION_ID
+        / "out"
+        / "update_report.xlsx"
+    )
+    import openpyxl
+
+    wb2 = openpyxl.load_workbook(out_abs)
+    ws = wb2["Summary"]
+    assert ws["B2"].value == 0.25
