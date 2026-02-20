@@ -7,7 +7,6 @@ import os
 from typing import Any, List, Optional
 
 from fastmcp import FastMCP
-from pptx import Presentation
 from pydantic import BaseModel, Field
 
 from ..file_system_toolkits.security import get_secure_path

@@ -123,7 +123,7 @@ def main():
         session_id=SESSION_ID,
     )
 
-    print("✅ Generated: out/weekly_report.xlsx, out/weekly_report.pptx, out/weekly_report.docx (in sandbox)")
+    print("Generated: out/weekly_report.xlsx, out/weekly_report.pptx, out/weekly_report.docx (in sandbox)")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,17 @@
+from fastmcp import FastMCP
+
+from aden_tools.tools.chart_tool.chart_tool import register_tools as register_charts
+from aden_tools.tools.excel_write_tool.excel_write_tool import (
+    register_tools as register_excel_write,
+)
+from aden_tools.tools.powerpoint_tool.powerpoint_tool import (
+    register_tools as register_powerpoint,
+)
+from aden_tools.tools.word_tool.word_tool import register_tools as register_word
+
+
+def register_office_skills_pack(mcp: FastMCP) -> None:
+    register_charts(mcp)
+    register_excel_write(mcp)
+    register_powerpoint(mcp)
+    register_word(mcp)

@@ -58,6 +58,7 @@ from .file_system_toolkits.view_file import register_tools as register_view_file
 from .file_system_toolkits.write_to_file import register_tools as register_write_to_file
 from .hubspot_tool import register_tools as register_hubspot
 from .news_tool import register_tools as register_news
+from .office_skills_pack.schema_tool import register_tools as register_office_schema
 from .pdf_read_tool import register_tools as register_pdf_read
 from .powerpoint_tool import register_tools as register_powerpoint
 from .port_scanner import register_tools as register_port_scanner
@@ -139,6 +140,7 @@ def register_all_tools(
     register_powerpoint(mcp)
     register_word(mcp)
     register_chart(mcp)
+    register_office_schema(mcp)
 
     # Security scanning tools (no credentials needed)
     register_ssl_tls_scanner(mcp)
